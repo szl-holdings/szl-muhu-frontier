@@ -6,6 +6,11 @@ from pathlib import Path
 from urllib.parse import parse_qs,urlsplit,urlencode
 from .witness import FIELDS, BOOL_FIELDS, DEMO, witness_query
 from .public_sources import load_snapshot, lookup, summary, parse_source_query, SNAPSHOT_SHA256
+from .provenance_graph import (
+ build_from_paths, validate_graph, filtered_graph, source_path_for_pmid,
+ lexical_search, TOPICS as PROVENANCE_TOPICS,
+)
+from .graph_ui import page as graph_page
 import argparse
 import json
 import math
@@ -61,7 +66,7 @@ h1{font-size:clamp(2.3rem,5vw,4rem);line-height:1.1;letter-spacing:-.05em;margin
 svg{width:100%;height:auto}.tag{display:inline-block;background:#264556;padding:.2rem .6rem;border-radius:8px;color:#b8e3ef}a{color:#90dcff}
 footer{margin-top:3rem;border-top:1px solid #315366;padding-top:1.4rem;color:#98bcc6}
 </style><main>
-<nav><a href="/">MUHU home</a><a href="/witness">Evidence witness</a><a href="/sources">Publication provenance</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
+<nav><a href="/">MUHU home</a><a href="/graph">Source provenance graph</a><a href="/witness">Evidence witness</a><a href="/sources">Publication provenance</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
 """
 
 def html_page(panel:str,summary:dict,cases:list[dict]):
@@ -298,6 +303,7 @@ class Handler(BaseHTTPRequestHandler):
  manifest:dict={}
  examples:list[dict]=[]
  source_snapshot:dict={}
+ citation_graph:dict={}
 
  def log_message(self,*args):return
 
@@ -332,6 +338,44 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,self.v3_metrics)
   if path=="/v3":
    return self.reply(200,v3_page(self.v3_metrics),"text/html; charset=utf-8")
+  if path in ("/graph","/api/v1/graph"):
+   try:
+    raw_q=urlsplit(self.path).query
+    params=parse_qs(raw_q,keep_blank_values=True,max_num_fields=3)
+    if set(params)-{"topic","q"} or any(len(v)!=1 for v in params.values()):
+     raise ValueError("QUERY_SHAPE_INVALID")
+    if path=="/api/v1/graph" and "q" in params:
+     raise ValueError("UNEXPECTED_SEARCH_ON_GRAPH_JSON")
+    topic=params.get("topic",["all"])[0]
+    view=filtered_graph(self.citation_graph,topic)
+    query=params.get("q")
+    matches=lexical_search(self.citation_graph,query[0]) if query is not None else None
+   except ValueError:
+    return self.reply(400,{"state":"INVALID_GRAPH_QUERY",
+                           "scientific_quality":"NOT_ASSESSED"})
+   if path=="/api/v1/graph":
+    return self.reply(200,view)
+   return self.reply(200,head_and_style()+graph_page(view,matches),"text/html; charset=utf-8")
+  if path=="/api/v1/graph/source":
+   try:
+    args=parse_qs(urlsplit(self.path).query,strict_parsing=True,
+                  keep_blank_values=True,max_num_fields=2)
+    if set(args)!={"pmid"} or len(args["pmid"])!=1:
+     raise ValueError("BAD_GRAPH_SOURCE_QUERY")
+    trace=source_path_for_pmid(self.citation_graph,args["pmid"][0])
+   except ValueError:
+    return self.reply(400,{"state":"INVALID_GRAPH_SOURCE_ID"})
+   return self.reply(200,trace)
+  if path=="/api/v1/graph/search":
+   try:
+    args=parse_qs(urlsplit(self.path).query,strict_parsing=True,
+                  keep_blank_values=True,max_num_fields=2)
+    if set(args)!={"q"} or len(args["q"])!=1:
+     raise ValueError("BAD_GRAPH_SEARCH_QUERY")
+    result=lexical_search(self.citation_graph,args["q"][0])
+   except ValueError:
+    return self.reply(400,{"state":"INVALID_BOUNDED_TITLE_SEARCH"})
+   return self.reply(200,result)
   if path=="/api/v1/sources":
    return self.reply(200,{
      "summary":summary(self.source_snapshot),
@@ -400,8 +444,13 @@ def create_handler(public_dir:Path):
  if v3.get("training_rows")!=672 or v3.get("test",{}).get("n")!=96:
   raise ValueError("UNBOUND_V3_EVALUATION_POPULATION")
  public_snapshot=load_snapshot(ROOT/"research"/"public_sources"/"pubmed-sources-admitted-20261117.json")
+ citation_graph=build_from_paths(
+   ROOT/"research"/"public_sources"/"pubmed-sources-admitted-20261117.json",
+   ROOT/"research"/"public_sources"/"sara-pubmed-sources-20261117.json")
+ validate_graph(citation_graph)
  return type("MUHUBoundHandler",(Handler,),{"manifest":manifest,"examples":rows[:6],
-                                         "v3_metrics":v3,"source_snapshot":public_snapshot})
+                                         "v3_metrics":v3,"source_snapshot":public_snapshot,
+                                         "citation_graph":citation_graph})
 
 def main():
  p=argparse.ArgumentParser()

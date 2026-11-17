@@ -175,6 +175,39 @@ efficacy**.
 This addition does not alter the existing MUHU v3 **FAILED/HOLD**
 model result or admit any examples into Khipu/Flagship54.
 
+## New: Source-bound Sara × Vidal × WWOX research provenance graph
+
+The [MUHU research provenance graph](https://szlholdings-szl-muhu-frontier.hf.space/graph)
+(now subject to CI and provider release admission) connects **23
+selected public PubMed citation records** into a typed, auditable
+bibliographic provenance graph: 9 WWOX-context, 7 Vidal-Gadea
+author-name-query candidates, 3 worm movement/calcium-method references,
+and **4 independently fetched Sara Behnamian PubMed author-name
+candidates**.
+
+The exact Sara source capture is bounded to PMIDs `36046618`,
+`40627371`, `42213236`, and `42740140`; the public metadata
+snapshot SHA-256 is
+`3af1e866cc72b8ed5a72bb865541bee589c10e19bcc58db16894103d1f850406`.
+Existing 19-source metadata remains immutable. The initial graph
+comprises **53 nodes and 92 directed provenance-only edges**:
+publication, DOI, source snapshot, query-scope, and PubMed authority.
+No gene-to-therapy, gene-to-disease, efficacy or biological
+causality edges are allowed.
+
+[Source scope, typed graph protocol and proof limits](research/public_sources/PROVENANCE_GRAPH_V1.md).
+The graph UI is **layered, interactive by server-side topic selection,
+and Python-generated SVG**; it is intentionally 2D, not a simulated
+3D molecular digital twin. Source titles and links are attributed to
+the NCBI PubMed index; a DOI match establishes **bibliographic
+identity at a recorded time only**. A missing PMID means not
+sampled—not nonexistent. Search is restricted to public paper-title
+words, with explicit abstention when no selected title matches.
+
+This feature does not alter the existing MUHU v3 experimental model
+**FAILED/HOLD**, publish third-party article texts, ingest Sara or
+Vidal lab data, or authorize a Khipu/Flagship54 training job.
+
 ## Next-cycle model admission gate
 
 Before any distinct future Khipu/Flagship research adapter, require:

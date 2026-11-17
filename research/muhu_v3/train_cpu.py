@@ -22,6 +22,7 @@ from sklearn.linear_model import LogisticRegression
 import sklearn
 
 from research.muhu_v3.curriculum import TARGETS, canon, digest, generated, verify
+from research.muhu_v3.artifact import normalize_vocabulary
 
 ACCEPTANCE = {
     "macro_f1_min": 0.85,
@@ -224,7 +225,8 @@ def run(public:Path,private:Path,stress:Path,out:Path):
                         idf_char=features.transformer_list[1][1].idf_)
     word=features.transformer_list[0][1]
     char=features.transformer_list[1][1]
-    vocabulary={"word":word.vocabulary_,"char":char.vocabulary_,
+    vocabulary={"word":normalize_vocabulary(word.vocabulary_),
+                "char":normalize_vocabulary(char.vocabulary_),
                 "word_spec":{"ngram_range":[1,2],"max_features":20000,
                              "min_df":2,"sublinear_tf":True},
                 "char_spec":{"ngram_range":[3,5],"max_features":20000,

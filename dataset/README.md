@@ -11,7 +11,7 @@ tags:
 - reproducibility
 - non-clinical
 size_categories:
-- n<1K
+- 1K<n<10K
 ---
 
 # MUHU v2 — Original Synthetic Methodology Curriculum

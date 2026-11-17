@@ -237,6 +237,43 @@ This is **not a new trained genetics model**. It provides a provenance
 control to evaluate future Khipu outputs, without modifying
 Flagship54, scheduling compute or claiming that model accuracy improved.
 
+## New: Publication-version and editorial-history evidence gate
+
+The [MUHU Editorial Lifecycle Witness](https://szlholdings-szl-muhu-frontier.hf.space/lifecycle)
+(now subject to protected-GitHub and Hugging Face release admission)
+captures **version-aware publication index metadata** for the same
+23 selected public PubMed citations. A bounded official NCBI EFetch
+XML request identified **three preprints linked to updates** and
+other recorded publication-history links.
+
+One selected preprint/update pair (**PMIDs 39257798 ↔ 41431865**)
+belongs to the same indexed version lineage. Consequently, MUHU
+now distinguishes **23 sampled citation records from 22 observed
+version groups**. This prevents a naive preprint/publication
+double-count within the selected corpus; it does not establish
+that the paired papers are scientifically equivalent, nor that
+22 independent studies have reproduced any biological finding.
+
+Source status is *indexed at a specific observation time only*.
+The absence of an NCBI retraction or correction flag is **NOT
+proof that an article has no such history, was peer reviewed,
+or contains valid scientific conclusions**. MUHU also recognizes
+synthetic retraction, erratum and expression-of-concern controls,
+all requiring independent human review.
+
+The exact public normalized metadata snapshot SHA-256 is
+`d7d2f74651c1b19ad9b102da08781d6b40bf4109b4a3984a4bc2bd5234ccfda4`.
+No raw PubMed XML, abstracts, full texts, partner lab data or
+patients are stored or published; the original provider XML
+was parsed in memory and discarded. The read-only public
+runtime does not call NCBI on user queries.
+
+[Lifecycle methods, official NLM definitions and source proof limits](research/public_sources/EDITORIAL_LIFECYCLE_V1.md).
+[Machine-readable source lifecycle](https://szlholdings-szl-muhu-frontier.hf.space/api/v1/lifecycle).
+The existing MUHU v3 learned classifier remains **FAILED/HOLD**;
+no active Khipu/Flagship54 job, checkpoint or training
+admission is implied by this release.
+
 ## Next-cycle model admission gate
 
 Before any distinct future Khipu/Flagship research adapter, require:

@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs,urlsplit,urlencode
 from .witness import FIELDS, BOOL_FIELDS, DEMO, witness_query
+from .public_sources import load_snapshot, lookup, summary, parse_source_query, SNAPSHOT_SHA256
 import argparse
 import json
 import math
@@ -60,7 +61,7 @@ h1{font-size:clamp(2.3rem,5vw,4rem);line-height:1.1;letter-spacing:-.05em;margin
 svg{width:100%;height:auto}.tag{display:inline-block;background:#264556;padding:.2rem .6rem;border-radius:8px;color:#b8e3ef}a{color:#90dcff}
 footer{margin-top:3rem;border-top:1px solid #315366;padding-top:1.4rem;color:#98bcc6}
 </style><main>
-<nav><a href="/">MUHU home</a><a href="/witness">Evidence witness</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
+<nav><a href="/">MUHU home</a><a href="/witness">Evidence witness</a><a href="/sources">Publication provenance</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
 """
 
 def html_page(panel:str,summary:dict,cases:list[dict]):
@@ -213,10 +214,90 @@ def witness_page(result:dict)->str:
               "testing remain the governing authorities.</footer></main></html>")
  return head_and_style()+"".join(parts)
 
+def publication_sources_page(snapshot:dict, selected:dict|None=None)->str:
+ """Render only pinned public citation metadata. Never infer biological truth."""
+ scope=summary(snapshot)
+ parts=[
+  "<p class='eyebrow'>MUHU public-source atlas · NCBI PubMed</p>",
+  "<h1>From declared source to indexed citation</h1>",
+  "<div class='banner'><strong>BIBLIOGRAPHIC METADATA ONLY — NOT A SCIENTIFIC OR CLINICAL VERDICT.</strong> "
+  "These records are selected, public PubMed citation identifiers checked at a recorded time. "
+  "The system has not reviewed abstracts or full text, reproduced experiments, "
+  "validated gene–disease mechanisms or established therapeutic benefit.</div>",
+  f"<p><span class='tag'>{scope['indexed_records']} indexed public records</span> "
+  f"<span class='tag'>3 bounded research search categories</span> "
+  f"<span class='tag'>observed {escape(scope['observed_utc'])}</span></p>",
+  "<p>Check a PMID against the pinned reference list, optionally comparing a DOI. "
+  "A citation match means only that its metadata identifiers agree in this stored snapshot. "
+  "An absent ID means <em>not sampled</em>, not that no publication exists.</p>",
+  "<form action='/sources' method='get' class='card'>",
+  "<p><label>PubMed identifier (digits only): <input name='pmid' pattern='[0-9]{5,10}' "
+  "inputmode='numeric' maxlength='10' required value='42422765'></label></p>",
+  "<p><label>Optional expected DOI (public citation identifier): "
+  "<input name='doi' maxlength='220' value='10.1016/j.omta.2026.201791'></label></p>",
+  "<button type='submit'>Compare public citation identity</button></form>",
+ ]
+ if selected is not None:
+  state=str(selected["state"])
+  parts.append("<section class='card'><h2>Identifier comparison</h2><p>"
+               f"<strong>{escape(state)}</strong></p>")
+  if "metadata" in selected:
+   row=selected["metadata"]
+   parts.append(f"<h3>{escape(row['title'])}</h3>"
+                f"<p>DOI comparison: {escape(selected['doi_comparison'])}</p>"
+                "<p>Index record <a rel='noopener noreferrer' href='"+
+                escape(row["source_url"],quote=True)+"'>"+escape(row["pmid"])+
+                "</a> · NCBI PubMed</p>")
+  else:
+   parts.append("<p>The PMID is not among this sampled list. "
+                "No source absence or scientific conclusion is inferred.</p>")
+  parts.append("<p class='muted'>"+escape(selected["limitation"])+"</p></section>")
+ parts.append("<h2>Evidence origin and coverage</h2>")
+ parts.append("<section class='cards'>")
+ categories={
+ "WWOX_mechanisms_and_preclinical":"WWOX publications — selected mechanistic, preclinical and clinical-context citations",
+ "Vidal_Gadea_author_index_candidates":"Vidal-Gadea author-query results — selected candidates, not the full laboratory bibliography",
+ "C_elegans_motion_calcium_methods":"C. elegans movement and calcium-analysis methodology — selected public sources",
+ }
+ for g,description in categories.items():
+  selected_count=sum(g in row["query_groups"] for row in snapshot["items"])
+  source=snapshot["search_coverage"][g]
+  parts.append("<article class='card'><strong>"+escape(description)+"</strong>"
+               f"<div class='kpi'>{selected_count}</div><p class='muted'>"
+               f"PubMed query reported {source['retrieved_search_count_at_initial_check']} hits; "
+               "selected items here are not a systematic review.</p></article>")
+ parts.append("</section><h2>Exact selected citation references</h2>")
+ for row in snapshot["items"]:
+  ptitle=escape(row["title"])
+  doi=row["doi"] or "DOI unavailable in snapshot"
+  tags=", ".join(row["query_groups"]).replace("_"," ")
+  date=escape(row["pubdate_as_reported"] or "Publication date unavailable")
+  parts.append(
+    "<article class='card'><p class='muted'>PMID "+escape(row["pmid"])+
+    " · "+date+" · "+escape(tags)+"</p>"
+    "<h3><a href='"+escape(row["source_url"],quote=True)+
+    "' rel='noopener noreferrer'>"+ptitle+"</a></h3>"
+    "<p>"+escape(row["journal"])+" · DOI: <code>"+escape(doi)+"</code></p>"
+    "<p class='muted'>Indexed citation only. No effectiveness, causal validity, "
+    "peer-review status, or patient relevance assessed.</p></article><br>"
+  )
+ parts.append(
+  "<footer>Upstream source: NCBI ESummary v2. Public snapshot SHA-256: "
+  "<code>"+SNAPSHOT_SHA256+"</code>. SHA-256 is an integrity check, not "
+  "an external signature. An author-name query candidate does not establish "
+  "collaboration, consent or a complete publication audit. "
+  "<a href='https://www.ncbi.nlm.nih.gov/home/about/policies/' "
+  "rel='noopener noreferrer'>NCBI policies and disclaimers</a>. "
+  "This public preview makes no live PubMed requests and stores no user inputs."
+  "</footer></main></html>"
+ )
+ return head_and_style()+"".join(parts)
+
 class Handler(BaseHTTPRequestHandler):
  server_version="SZL-MUHU/2"
  manifest:dict={}
  examples:list[dict]=[]
+ source_snapshot:dict={}
 
  def log_message(self,*args):return
 
@@ -251,6 +332,27 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,self.v3_metrics)
   if path=="/v3":
    return self.reply(200,v3_page(self.v3_metrics),"text/html; charset=utf-8")
+  if path=="/api/v1/sources":
+   return self.reply(200,{
+     "summary":summary(self.source_snapshot),
+     "items":[{"pmid":r["pmid"],"title":r["title"],"doi":r["doi"],
+               "source_url":r["source_url"],"query_groups":r["query_groups"]}
+              for r in self.source_snapshot["items"]]})
+  if path in ("/api/v1/source","/sources"):
+   query=urlsplit(self.path).query
+   try:
+    if not query and path=="/sources":
+     selected=None
+    else:
+     expected=parse_source_query(query)
+     selected=lookup(self.source_snapshot,**expected)
+   except ValueError:
+    return self.reply(400,{"state":"INVALID_PUBLIC_CITATION_QUERY",
+                           "scientific_claim_validity":"NOT_ASSESSED"})
+   if path=="/api/v1/source":
+    return self.reply(200,selected)
+   return self.reply(200,publication_sources_page(self.source_snapshot,selected),
+                     "text/html; charset=utf-8")
   if path in ("/witness","/api/v1/witness"):
    try:
     witness=witness_query(urlsplit(self.path).query,demo_if_empty=(path=="/witness"))
@@ -297,7 +399,9 @@ def create_handler(public_dir:Path):
   raise ValueError("UNSAFE_V3_QUALIFICATION")
  if v3.get("training_rows")!=672 or v3.get("test",{}).get("n")!=96:
   raise ValueError("UNBOUND_V3_EVALUATION_POPULATION")
- return type("MUHUBoundHandler",(Handler,),{"manifest":manifest,"examples":rows[:6],"v3_metrics":v3})
+ public_snapshot=load_snapshot(ROOT/"research"/"public_sources"/"pubmed-sources-admitted-20261117.json")
+ return type("MUHUBoundHandler",(Handler,),{"manifest":manifest,"examples":rows[:6],
+                                         "v3_metrics":v3,"source_snapshot":public_snapshot})
 
 def main():
  p=argparse.ArgumentParser()

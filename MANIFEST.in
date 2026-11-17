@@ -1,0 +1,14 @@
+include LICENSE
+include pyproject.toml
+include docs/PYPI_README.md
+recursive-include muhu *.py
+prune dataset
+prune research
+prune tests
+prune .github
+prune cloudflare
+prune release
+prune build
+prune dist
+global-exclude *.jsonl *.pem *.key *.pkl *.pickle *.pt *.pth *.safetensors
+global-exclude __pycache__ *.pyc

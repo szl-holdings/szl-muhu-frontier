@@ -1,0 +1,81 @@
+{
+  "schema": "szl.muhu.public_release_status.v1",
+  "observed_utc": "2026-11-17T19:38:37Z",
+  "snapshot_kind": "HISTORICAL_SOURCED_OBSERVATIONS_NOT_LIVE_POLLING",
+  "product": "MUHU Research Methodology Frontier",
+  "organization": "SZL Holdings",
+  "source": {
+    "provider": "GitHub",
+    "repo": "https://github.com/szl-holdings/szl-muhu-frontier",
+    "protected_main_observed": "9274a6d88b8a36e81c7ce599c1d6a33af8548fc5",
+    "admission": "CANONICAL_SOURCE",
+    "post_release_commit": "NOT_YET_CHECKED"
+  },
+  "research_preview": {
+    "provider": "Hugging Face",
+    "repo": "https://huggingface.co/spaces/SZLHOLDINGS/szl-muhu-frontier",
+    "http_url": "https://szlholdings-szl-muhu-frontier.hf.space/",
+    "revision_observed": "0a58f432eab222947e715a1dd09c867aa85bfeaa",
+    "runtime_observed": "RUNNING_CPU_BASIC",
+    "qualification": "RESEARCH_PREVIEW_ONLY",
+    "post_release_byte_parity": "NOT_YET_VERIFIED"
+  },
+  "research_dataset": {
+    "provider": "Hugging Face",
+    "repo": "https://huggingface.co/datasets/SZLHOLDINGS/muhu-methodology-sft-v2",
+    "revision_observed": "d53a2e5fd3e4027d13bb4785e151b0e7cd075389",
+    "contents": "ORIGINAL_SYNTHETIC_TRAIN_ONLY"
+  },
+  "external_web": {
+    "product_url": "https://a-11-oy.com/",
+    "proof_url": "https://a11oy.net/",
+    "product_http_at_observation": 200,
+    "proof_http_at_observation": 200,
+    "origin_to_latest_git_source_alignment": "UNVERIFIED",
+    "cloudflare_deployment_revision": "UNVERIFIED"
+  },
+  "distribution": {
+    "candidate_name": "szl-muhu-evidence",
+    "version": "0.1.0",
+    "pypi_project_url": "https://pypi.org/project/szl-muhu-evidence/",
+    "pypi_http_at_observation": 404,
+    "publication_state": "UNPUBLISHED_AT_OBSERVATION",
+    "trusted_publisher": "NOT_VERIFIED",
+    "artifact_checks": "LOCAL_CANDIDATE_BUILD_NOT_REGISTERED"
+  },
+  "monetization": {
+    "provider": "Cloudflare Monetization Gateway",
+    "provider_docs": "https://developers.cloudflare.com/monetization-gateway/x402/",
+    "gateway_account_rule_readback": "UNAVAILABLE_WITHOUT_AUTHORIZED_ACCOUNT_READ",
+    "x402_v2_challenge_on_named_paid_route": "NOT_OBSERVED",
+    "payment_context_jwt_verification": "NOT_VERIFIED",
+    "facilitator_settlement": "NOT_VERIFIED",
+    "verified_revenue_usd": null,
+    "revenue_claim_authorized": false,
+    "preview_public_read_routes_charged": false,
+    "x402_structure_tests_are_settlement_proof": false
+  },
+  "scientific": {
+    "model_state": "FAILED_HOLD",
+    "benchmark": "MUHU v3 synthetic methodology only",
+    "v3_raw_argmax_accuracy": 0.875,
+    "v3_selective_coverage": 0.5,
+    "v3_macro_f1_abstentions": 0.642,
+    "v3_stress_correct": 7,
+    "v3_stress_total": 32,
+    "independent_expert_benchmark": "NOT_PERFORMED",
+    "collaborator_lab_data_used": false,
+    "gene_therapy_clinical_qualification": false,
+    "flagship_training_admitted": false
+  },
+  "release_admission": {
+    "github_source_ready_for_review": true,
+    "huggingface_new_source_deployed": false,
+    "cloudflare_paid_route_settlement_verified": false,
+    "pypi_release_verified": false,
+    "scientific_production_qualified": false,
+    "all_layers_operational": false,
+    "admit_to_flagship_training": false,
+    "limitations": "A 200, green software CI, a 402 challenge, and package-name vacancy do not establish commercial sales, scientific validity, clinical clearance or production readiness."
+  }
+}

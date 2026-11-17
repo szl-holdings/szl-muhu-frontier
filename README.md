@@ -26,6 +26,24 @@ literal translation of genetics.
 
 **Stage:** SOURCE-IMPLEMENTED / SYNTHETIC TESTED. **Clinical, biomedical,
 gene-therapy and flagship-model qualification: NOT ESTABLISHED.**
+
+## Release proof, developers and publication paths
+
+- [Investor-facing evidence and honest readiness](https://szlholdings-szl-muhu-frontier.hf.space/proof)
+- [Developer architecture, local package and API guide](https://szlholdings-szl-muhu-frontier.hf.space/developers)
+- [Exact historical release-status JSON](https://szlholdings-szl-muhu-frontier.hf.space/api/v1/release-proof)
+- [Release admission and PyPI Trusted Publishing runbook](docs/release/RELEASE_ADMISSION.md)
+- [Cloudflare x402 v2 payment/settlement admission](cloudflare/MONETIZATION_ADMISSION.md)
+- [Public technical methods note — unreviewed draft](docs/publications/MUHU_METHODS_TECHNICAL_NOTE_20261117.md)
+- [Offline Python distribution/CLI candidate](docs/PYPI_README.md): `szl-muhu-evidence==0.1.0`, **not yet published to PyPI**.
+
+**Important:** The proof page is a frozen as-of snapshot. A successful
+public website response, a green GitHub workflow, an HTTP 402 challenge
+or a wheel build does not establish verified Cloudflare revenue, a PyPI
+release, clinical approval or a trained research model. The next
+GitHub commit and Hugging Face deployment require independent
+source-byte parity readback; never call the historical SHA current
+without checking it again.
 The preview exposes no patient information, genetic sequences,
 collaborator recordings, unpublished laboratory documents or
 medical-treatment guidance. No model has been trained on the new v2

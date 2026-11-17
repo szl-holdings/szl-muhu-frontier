@@ -18,6 +18,8 @@ from .lifecycle import (load as load_lifecycle,
                         PINNED_SNAPSHOT_SHA as LIFECYCLE_SHA,
                         validate_snapshot as validate_lifecycle)
 from .lifecycle_ui import page as lifecycle_page
+from .release_proof import load as load_release_proof, public_api as release_public_api
+from .release_ui import page as release_proof_page
 import argparse
 import json
 import math
@@ -73,7 +75,7 @@ h1{font-size:clamp(2.3rem,5vw,4rem);line-height:1.1;letter-spacing:-.05em;margin
 svg{width:100%;height:auto}.tag{display:inline-block;background:#264556;padding:.2rem .6rem;border-radius:8px;color:#b8e3ef}a{color:#90dcff}
 footer{margin-top:3rem;border-top:1px solid #315366;padding-top:1.4rem;color:#98bcc6}
 </style><main>
-<nav><a href="/">MUHU home</a><a href="/lifecycle">Editorial and version history</a><a href="/claim-gate">Claim Evidence Firewall</a><a href="/graph">Source provenance graph</a><a href="/witness">Evidence witness</a><a href="/sources">Publication provenance</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
+<nav><a href="/">MUHU home</a><a href="/proof">Investor proof</a><a href="/developers">Developers</a><a href="/lifecycle">Editorial and version history</a><a href="/claim-gate">Claim Evidence Firewall</a><a href="/graph">Source provenance graph</a><a href="/witness">Evidence witness</a><a href="/sources">Publication provenance</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
 """
 
 def html_page(panel:str,summary:dict,cases:list[dict]):
@@ -313,6 +315,7 @@ class Handler(BaseHTTPRequestHandler):
  citation_graph:dict={}
  claim_matrix:dict={}
  lifecycle_snapshot:dict={}
+ release_snapshot:dict={}
 
  def log_message(self,*args):return
 
@@ -343,6 +346,12 @@ class Handler(BaseHTTPRequestHandler):
                           "clinical_qualification":"DENIED","lab_data":"NOT_CONNECTED"})
   if path=="/api/v1/manifest":
    return self.reply(200,self.manifest)
+  if path=="/api/v1/release-proof":
+   return self.reply(200,release_public_api(self.release_snapshot))
+  if path in ("/proof","/developers"):
+   audience="investors" if path=="/proof" else "developers"
+   return self.reply(200,head_and_style()+release_proof_page(self.release_snapshot,audience=audience),
+                     "text/html; charset=utf-8")
   if path=="/api/v1/v3-results":
    return self.reply(200,self.v3_metrics)
   if path=="/api/v1/claim-policy":
@@ -521,6 +530,7 @@ def create_handler(public_dir:Path):
  if {i["pmid"] for i in editorial["normalized_records"]}!={n["pmid"] for n in citation_graph["nodes"] if n["kind"]=="publication"}:
   raise ValueError("EDITORIAL_SOURCE_POPULATION_CHANGED")
  matrix_report=claim_matrix(citation_graph,lifecycle_snapshot=editorial)
+ release_snapshot=load_release_proof(ROOT/"release"/"public_proof.json")
  if (matrix_report["combinations_checked"]!=207
      or matrix_report["scientific_or_clinical_claims_admitted"]!=0
      or matrix_report["version_disjointness"]["version_groups_in_selected_sample"]!=22):
@@ -529,7 +539,8 @@ def create_handler(public_dir:Path):
                                          "v3_metrics":v3,"source_snapshot":public_snapshot,
                                          "citation_graph":citation_graph,
                                          "claim_matrix":matrix_report,
-                                         "lifecycle_snapshot":editorial})
+                                         "lifecycle_snapshot":editorial,
+                                         "release_snapshot":release_snapshot})
 
 def main():
  p=argparse.ArgumentParser()

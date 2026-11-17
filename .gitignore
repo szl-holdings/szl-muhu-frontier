@@ -8,3 +8,7 @@ private/
 local-only/
 *.log
 research/public_sources/pubmed-sources-20261117.json
+dist/
+build/
+*.egg-info/
+.release-smoke/

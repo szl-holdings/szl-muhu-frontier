@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: >-
+  Cite the SZL Holdings source repository and pinned revision when
+  discussing MUHU's research-method software. This is not a
+  peer-reviewed clinical or genomic publication.
+title: "MUHU: Source-Bound Research Methodology Evidence Frontier"
+type: software
+license: MIT
+authors:
+  - name: "SZL Holdings"
+repository-code: "https://github.com/szl-holdings/szl-muhu-frontier"
+url: "https://huggingface.co/spaces/SZLHOLDINGS/szl-muhu-frontier"
+keywords:
+  - evidence provenance
+  - reproducibility
+  - synthetic research methodology
+  - source-bound classification
+  - research preview

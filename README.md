@@ -145,6 +145,36 @@ behavior test**, not external scientific validation.
 [Read the trust boundary and negative controls](research/METHOD_WITNESS.md).
 The platform remains `/readyz` 503 (scientific and clinical HOLD).
 
+## New: Public PMID/DOI source-identity research preview
+
+The [MUHU Publication Provenance page](https://szlholdings-szl-muhu-frontier.hf.space/sources)
+(now subject to GitHub/Hub release admission) connects **19 selected,
+publicly indexed PubMed citations** to their observed source metadata.
+Selection includes 9 WWOX-context articles, 7 Vidal-Gadea
+*author-index candidates*, and 3 C. elegans motion/calcium
+methodology references. These are a bounded subset, not a systematic
+review or complete collaborator bibliography.
+
+The immutable public snapshot stores exact PMID, DOI if available,
+title, publication dates, journal, topic selection, source URL and
+provider-observation timestamp. Its SHA-256 is
+`d0bcf237127b41873e70d2a20c1e0e5666b1250b30244732af608bedff14eda6`.
+No paper abstract, full-text article, genetic sequence, patient record
+or partner lab measurement is redistributed.
+
+The [typed source API](https://szlholdings-szl-muhu-frontier.hf.space/api/v1/sources)
+answers bounded identifier questions. A DOI mismatch is flagged as an
+identifier conflict—not evidence that a biomedical finding is false.
+An unlisted PMID is **UNAVAILABLE/not sampled**, not nonexistent.
+Read-only runtime makes no upstream NCBI calls and does not accept
+user-supplied fetch URLs. Every result states
+**bibliographic identity only, never scientific validity or treatment
+efficacy**.
+
+[Source methodology, explicit coverage and failure cases](research/public_sources/README.md).
+This addition does not alter the existing MUHU v3 **FAILED/HOLD**
+model result or admit any examples into Khipu/Flagship54.
+
 ## Next-cycle model admission gate
 
 Before any distinct future Khipu/Flagship research adapter, require:

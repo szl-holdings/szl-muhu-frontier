@@ -7,6 +7,7 @@ from urllib.parse import parse_qs,urlsplit
 import argparse
 import json
 import math
+from hashlib import sha256
 
 from .core import canonical, status_of,generate,verify_splits
 
@@ -58,7 +59,7 @@ h1{font-size:clamp(2.3rem,5vw,4rem);line-height:1.1;letter-spacing:-.05em;margin
 svg{width:100%;height:auto}.tag{display:inline-block;background:#264556;padding:.2rem .6rem;border-radius:8px;color:#b8e3ef}a{color:#90dcff}
 footer{margin-top:3rem;border-top:1px solid #315366;padding-top:1.4rem;color:#98bcc6}
 </style><main>
-<nav><a href="/">MUHU home</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
+<nav><a href="/">MUHU home</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
 """
 
 def html_page(panel:str,summary:dict,cases:list[dict]):
@@ -99,6 +100,53 @@ def html_page(panel:str,summary:dict,cases:list[dict]):
          "Evidence hashes are not signatures.</footer></main></html>")
  return head_and_style()+first
 
+def v3_page(results:dict)->str:
+ """Render only source-admitted, aggregated synthetic results, not private rows."""
+ test=results["test"]
+ if results.get("quality_gate")!="FAILED_HOLD" or results.get("flagship_training_admitted") is not False:
+  raise ValueError("UNQUALIFIED_RESEARCH_RESULT_REJECTED")
+ report=(f"<p class='eyebrow'>SZL MUHU v3 · negative controls · reproducibility</p>"
+         "<h1>Learn from a failure, not a headline</h1>"
+         "<div class='banner'><strong>RESEARCH QUALITY: HOLD.</strong> "
+         "This is synthetic methodological text classification, NOT genetics, "
+         "microscopy, gene therapy or clinical validation. No Khipu adapter was trained.</div>"
+         "<p>Test labels were balanced and each synthetic condition group appeared "
+         "in only one partition. The public generator makes this test reconstructable; "
+         "there was no independent blinded or human-adjudicated biological evaluation.</p>")
+ display=[
+  ("Training examples",results["training_rows"]),
+  ("Test cases",test["n"]),
+  ("Raw argmax accuracy",str(round(test["raw_argmax_accuracy"]*100,2))+"%"),
+  ("Selective coverage",str(round(test["thresholded_selective_coverage"]*100,2))+"%"),
+  ("Macro F1 with abstentions",round(test["macro_f1_abstentions_counted_as_misses"],3)),
+  ("Stress-case accuracy",str(round(results["presealed_stress"]["accuracy"]*100,2))+"%"),
+ ]
+ report+="<h2>Fixed, preregistered CPU experiment</h2><section class='cards'>"
+ for label,value in display:
+  report+=f"<article class='card'><div class='kpi'>{escape(str(value))}</div><strong>{escape(label)}</strong></article>"
+ report+="</section><h2>Per-class recall: which states were missed?</h2><section class='cards'>"
+ for label,recall in test["per_class_recall"].items():
+  rate=max(0.0,min(1.0,float(recall)))
+  report+=(f"<article class='card'><strong>{escape(label)}</strong>"
+           f"<div class='kpi'>{rate*100:.1f}%</div>"
+           f"<svg viewBox='0 0 250 18' role='img' aria-label='{escape(label)} recall "
+           f"{rate*100:.1f} percent'><rect width='250' height='18' fill='#244e5a' rx='6'/>"
+           f"<rect width='{rate*250:.1f}' height='18' fill='#68cfbb' rx='6'/></svg>"
+           "<p class='muted'>24 invented observations per label; not biomedical cases.</p></article>")
+ report+=("</section><h2>What remains missing</h2>"
+          "<p>The strict quality gates failed: synthetic test macro F1 was below "
+          "0.85, minimum recall below 0.70, selective coverage below 0.85, "
+          "and internal stress accuracy below 0.75. No post-test tuning was "
+          "used to recast those failures as successes.</p>"
+          "<p>Next: genuinely new expert-adjudicated conditions and language "
+          "shifts, robust low-prevalence tests, Khipu forgetting and abstention "
+          "comparison, approved new training generation. No existing flagship "
+          "job or collaborator data has been changed.</p>"
+          "<footer>SHA-256 binds files; it is not an independent attestation. "
+          "Source: SZL Holdings; research-model weights retained privately. "
+          "Model state: HOLD, not deployable.</footer></main></html>")
+ return head_and_style()+report
+
 class Handler(BaseHTTPRequestHandler):
  server_version="SZL-MUHU/2"
  manifest:dict={}
@@ -133,6 +181,10 @@ class Handler(BaseHTTPRequestHandler):
                           "clinical_qualification":"DENIED","lab_data":"NOT_CONNECTED"})
   if path=="/api/v1/manifest":
    return self.reply(200,self.manifest)
+  if path=="/api/v1/v3-results":
+   return self.reply(200,self.v3_metrics)
+  if path=="/v3":
+   return self.reply(200,v3_page(self.v3_metrics),"text/html; charset=utf-8")
   if path=="/api/v1/example":
    query=parse_qs(urlsplit(self.path).query,keep_blank_values=True,max_num_fields=2)
    if set(query)-{"i"} or len(query.get("i",["0"]))!=1:return self.reply(400,{"state":"BAD_QUERY"})
@@ -159,7 +211,18 @@ def create_handler(public_dir:Path):
  rows=[json.loads(x) for x in raw.splitlines() if x.strip()]
  if len(rows)!=manifest["public_training_records"] or any(row["split"]!="train" for row in rows):
   raise ValueError("UNEXPECTED_PUBLIC_TRAINING_ROWS")
- return type("MUHUBoundHandler",(Handler,),{"manifest":manifest,"examples":rows[:6]})
+ v3_path=ROOT/"research"/"muhu_v3"/"public_results.json"
+ v3_bytes=v3_path.read_bytes()
+ if sha256(v3_bytes).hexdigest()!="1de7f605b564ea88918702b551513385fde6680d4e49d74d6bf5c360dd930e87":
+  raise ValueError("PUBLIC_V3_RESULT_BYTES_UNREVIEWED")
+ v3=json.loads(v3_bytes)
+ if v3.get("schema")!="szl.muhu.v3.public_aggregate_results.v1":
+  raise ValueError("INVALID_V3_PUBLIC_REPORT")
+ if v3.get("quality_gate")!="FAILED_HOLD" or v3.get("flagship_training_admitted") is not False:
+  raise ValueError("UNSAFE_V3_QUALIFICATION")
+ if v3.get("training_rows")!=672 or v3.get("test",{}).get("n")!=96:
+  raise ValueError("UNBOUND_V3_EVALUATION_POPULATION")
+ return type("MUHUBoundHandler",(Handler,),{"manifest":manifest,"examples":rows[:6],"v3_metrics":v3})
 
 def main():
  p=argparse.ArgumentParser()

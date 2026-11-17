@@ -1,0 +1,11 @@
+# Reproducible byte hashes across Windows and Linux clones.
+# Do not let core.autocrlf rewrite source, receipts, or public evidence.
+*.py text eol=lf
+*.json text eol=lf
+*.jsonl text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+Dockerfile text eol=lf
+LICENSE text eol=lf

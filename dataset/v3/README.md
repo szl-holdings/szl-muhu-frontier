@@ -54,6 +54,16 @@ the active Flagship54 job. A distinct future Khipu training generation
 requires frozen base/tokenizer/rights, a new qualified benchmark,
 approved budget and the existing one-owner signed-job pathway.
 
+**CPU-only research baseline result (2026-11-17): HOLD.** The
+frozen synthetic v3 test yielded raw argmax 87.5% on 96 cases,
+but with only 50% selective coverage, macro F1 0.642 with abstentions
+as misses, and 7/32 presealed internal stress items correct.
+Its per-class recall failed minimum gates; the weights remain private
+and were NOT added to Khipu or Flagship54.
+The test/validation records and internal stress prompts were not
+published with this train-only corpus. Their public generator makes
+the synthetic test reconstructable; no independent blinded results.
+
 Source and current status:
 https://github.com/szl-holdings/szl-muhu-frontier
 and

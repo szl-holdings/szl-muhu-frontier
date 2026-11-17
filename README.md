@@ -101,6 +101,30 @@ model's user prompt. No validation/test row is allowed in training.
   MUHU v2 does not inject into Flagship54, restart a GPU lane, create
   a paid job or override its completion guard.
 
+## MUHU v3 research result — quality HOLD
+
+A **separate** preregistered MUHU v3 original synthetic methodology
+curriculum is in `dataset/v3/` and `research/muhu_v3/`. It contains
+**672 class-balanced training examples** plus **60 validation and 96
+test examples kept in owner-private evidence**. It does not use Sara
+Behnamian's authored puzzle text or Vidal-Gadea lab data. No Khipu
+or Flagship54 weights were trained from it.
+
+One CPU-only TF-IDF + logistic research classifier was fitted to the
+672 invented training prompts. Its test raw argmax accuracy was 87.5%
+against a balanced 25.0% majority baseline, **but strict selective
+coverage was just 50.0%, minimum-class recall 33.3%, macro F1
+(with abstentions as misses) 0.642, and presealed internal stress
+accuracy 7/32**. These FAIL the frozen acceptance thresholds.
+No post-test tuning or model promotion was authorized.
+
+See the [public negative result](research/muhu_v3/RESULTS_20261117.md),
+[fixed preregistration](research/muhu_v3/ACCEPTANCE.md), and the
+read-only [MUHU v3 results page](https://szlholdings-szl-muhu-frontier.hf.space/v3).
+A public source generator means that withheld internal test cases
+can be reconstructed; outside blinded expert review is still absent.
+A functioning preview and green CI do NOT establish scientific validity.
+
 ## Next-cycle model admission gate
 
 Before any distinct future Khipu/Flagship research adapter, require:

@@ -13,6 +13,11 @@ from .provenance_graph import (
 from .graph_ui import page as graph_page
 from .claim_firewall import adjudicate, parse_request as parse_claim_request, rulebook as claim_rulebook, matrix as claim_matrix
 from .claim_ui import page as claim_page
+from .lifecycle import (load as load_lifecycle,
+                        lookup as lifecycle_lookup,
+                        PINNED_SNAPSHOT_SHA as LIFECYCLE_SHA,
+                        validate_snapshot as validate_lifecycle)
+from .lifecycle_ui import page as lifecycle_page
 import argparse
 import json
 import math
@@ -68,7 +73,7 @@ h1{font-size:clamp(2.3rem,5vw,4rem);line-height:1.1;letter-spacing:-.05em;margin
 svg{width:100%;height:auto}.tag{display:inline-block;background:#264556;padding:.2rem .6rem;border-radius:8px;color:#b8e3ef}a{color:#90dcff}
 footer{margin-top:3rem;border-top:1px solid #315366;padding-top:1.4rem;color:#98bcc6}
 </style><main>
-<nav><a href="/">MUHU home</a><a href="/claim-gate">Claim Evidence Firewall</a><a href="/graph">Source provenance graph</a><a href="/witness">Evidence witness</a><a href="/sources">Publication provenance</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
+<nav><a href="/">MUHU home</a><a href="/lifecycle">Editorial and version history</a><a href="/claim-gate">Claim Evidence Firewall</a><a href="/graph">Source provenance graph</a><a href="/witness">Evidence witness</a><a href="/sources">Publication provenance</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
 """
 
 def html_page(panel:str,summary:dict,cases:list[dict]):
@@ -307,6 +312,7 @@ class Handler(BaseHTTPRequestHandler):
  source_snapshot:dict={}
  citation_graph:dict={}
  claim_matrix:dict={}
+ lifecycle_snapshot:dict={}
 
  def log_message(self,*args):return
 
@@ -343,6 +349,41 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,claim_rulebook())
   if path=="/api/v1/claim-matrix":
    return self.reply(200,self.claim_matrix)
+  if path=="/api/v1/lifecycle":
+   history=self.lifecycle_snapshot
+   return self.reply(200,{
+     "schema":history["schema"],
+     "selected_publications":history["expected_pmid_count"],
+     "source_observed_utc":history["observed_utc"],
+     "source_snapshot_sha256":LIFECYCLE_SHA,
+     "editorial_index_category_counts":history["editorial_category_counts"],
+     "correction_link_type_counts":history["correction_link_type_counts"],
+     "version_group_count":history["version_components"]["selected_pmid_version_group_count"],
+     "linked_version_pairs":history["version_components"]["explicit_in_sample_version_links"],
+     "external_linked_version_targets":history["version_components"]["unselected_linked_version_targets"],
+     "not_scientific_quality":True,
+     "absence_of_editorial_notice_not_a_clear_status":True,
+     "clinical_qualification":"DENIED"
+   })
+  if path in ("/lifecycle","/api/v1/lifecycle/source"):
+   try:
+    args=parse_qs(urlsplit(self.path).query,strict_parsing=True,
+                  keep_blank_values=True,max_num_fields=2)
+    if not args and path=="/lifecycle":
+     selected=None
+    elif set(args)=={"pmid"} and len(args["pmid"])==1:
+     chosen=args["pmid"][0]
+     selected=lifecycle_lookup(self.lifecycle_snapshot,chosen)
+    else:
+     raise ValueError("BAD_BOUNDED_EDITORIAL_QUERY")
+   except ValueError:
+    return self.reply(400,{"state":"INVALID_PUBLICATION_IDENTIFIER",
+                           "medical_quality":"NOT_EVALUATED"})
+   if path=="/api/v1/lifecycle/source":
+    return self.reply(200,selected)
+   return self.reply(200,head_and_style()+lifecycle_page(
+       self.lifecycle_snapshot,self.citation_graph,
+       selected["pmid"] if selected else None),"text/html; charset=utf-8")
   if path in ("/claim-gate","/api/v1/claim-gate"):
    try:
     raw_query=urlsplit(self.path).query
@@ -350,7 +391,8 @@ class Handler(BaseHTTPRequestHandler):
                "doi":"10.1016/j.omta.2026.201791"}
               if path=="/claim-gate" and not raw_query
               else parse_claim_request(raw_query))
-    decision=adjudicate(self.citation_graph,**selected)
+    decision=adjudicate(self.citation_graph,**selected,
+                        lifecycle_snapshot=self.lifecycle_snapshot)
    except ValueError:
     return self.reply(400,{"state":"INVALID_BOUNDED_CLAIM_QUERY",
                            "clinical_claim_supported":False})
@@ -472,13 +514,22 @@ def create_handler(public_dir:Path):
    ROOT/"research"/"public_sources"/"pubmed-sources-admitted-20261117.json",
    ROOT/"research"/"public_sources"/"sara-pubmed-sources-20261117.json")
  validate_graph(citation_graph)
- matrix_report=claim_matrix(citation_graph)
- if matrix_report["combinations_checked"]!=207 or matrix_report["scientific_or_clinical_claims_admitted"]!=0:
+ editorial=load_lifecycle(
+   ROOT/"research"/"public_sources"/"pubmed-editorial-lifecycle-20261117.json")
+ if editorial["parent_bibliographic_graph_sha256"]!=citation_graph["graph_sha256"]:
+  raise ValueError("EDITORIAL_SOURCE_GRAPH_SHA_MISMATCH")
+ if {i["pmid"] for i in editorial["normalized_records"]}!={n["pmid"] for n in citation_graph["nodes"] if n["kind"]=="publication"}:
+  raise ValueError("EDITORIAL_SOURCE_POPULATION_CHANGED")
+ matrix_report=claim_matrix(citation_graph,lifecycle_snapshot=editorial)
+ if (matrix_report["combinations_checked"]!=207
+     or matrix_report["scientific_or_clinical_claims_admitted"]!=0
+     or matrix_report["version_disjointness"]["version_groups_in_selected_sample"]!=22):
   raise ValueError("CLAIM_FIREWALL_QUALITY_BOUNDS_BROKEN")
  return type("MUHUBoundHandler",(Handler,),{"manifest":manifest,"examples":rows[:6],
                                          "v3_metrics":v3,"source_snapshot":public_snapshot,
                                          "citation_graph":citation_graph,
-                                         "claim_matrix":matrix_report})
+                                         "claim_matrix":matrix_report,
+                                         "lifecycle_snapshot":editorial})
 
 def main():
  p=argparse.ArgumentParser()

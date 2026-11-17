@@ -76,6 +76,22 @@ def page(result:dict,coverage:dict,options:list[tuple[str,str]])->str:
         intro.append('<article class="card"><strong>'+escape(label)+'</strong>'
                      '<p>'+escape(str(value))+'</p></article>')
     intro.append('</section>')
+    editorial=result.get("source_editorial_history")
+    if editorial is not None:
+        intro.append('<h2>Indexed editorial and version history</h2><section class="card">')
+        intro.append('<p><strong>Observed metadata state:</strong> '+
+                     escape(editorial["editorial_index_state"])+'</p>')
+        intro.append('<p>Version-linked selected PMIDs: <code>'+
+                     escape(", ".join(editorial["selected_version_group_members"]))+
+                     '</code></p>')
+        intro.append('<p class="muted">Source observed '+
+                     escape(editorial["source_observed_utc"])+
+                     '. A PubMed update link does not establish identical findings; '
+                     'the absence of a correction flag does not prove the publication '
+                     'unretracted or its conclusions correct.</p>')
+        intro.append('<p><a href="/lifecycle?pmid='+
+                     escape(result["input"]["pmid"],quote=True)+
+                     '">Inspect the exact editorial history and reported links</a></p></section>')
     intro.append('<h2>Evidence required before making this claim</h2>')
     if result["requirements_not_verified"]:
         intro.append('<section class="card"><ol>')

@@ -16,6 +16,7 @@ import json
 from .provenance_graph import (
     PMID_PATTERN,DOI_PATTERN,GRAPH_SCHEMA,source_path_for_pmid,validate_graph,
 )
+from .lifecycle import lookup as lifecycle_lookup
 
 SCHEMA="szl.muhu.claim_evidence_firewall.v1"
 POLICY="muhu-epistemic-firewall-20261117"
@@ -157,7 +158,8 @@ def rulebook()->dict:
         "model_trained":False,
     }
 
-def adjudicate(graph:dict,*,pmid:str,claim_type:str,doi:str|None=None)->dict:
+def adjudicate(graph:dict,*,pmid:str,claim_type:str,doi:str|None=None,
+               lifecycle_snapshot:dict|None=None)->dict:
     if claim_type not in CLAIM_CLASSES:
         raise ValueError("UNSUPPORTED_CLAIM_CLASS")
     if not isinstance(pmid,str) or not PMID_PATTERN.fullmatch(pmid):
@@ -172,9 +174,36 @@ def adjudicate(graph:dict,*,pmid:str,claim_type:str,doi:str|None=None)->dict:
     # Graph always built from exact SHA-pinned approved PubMed sources at
     # server startup. Runtime performs no network calls.
     trace=source_path_for_pmid(graph,pmid)
-    requirements=list(CLAIM_CLASSES[claim_type]["requirements"])
-    input_vals={"pmid":pmid,"claim_type":claim_type,"doi":doi}
     known=trace["state"]=="BIBLIOGRAPHIC_SOURCE_PATH_OBSERVED_AT_SNAPSHOT"
+    requirements=list(CLAIM_CLASSES[claim_type]["requirements"])
+    editorial=None
+    if lifecycle_snapshot is not None:
+        history=lifecycle_lookup(lifecycle_snapshot,pmid)
+        if known and history["state"]!="BOUNDED_INDEX_LIFECYCLE_METADATA_OBSERVED":
+            raise ValueError("SOURCE_LIFECYCLE_NOT_BOUND")
+        if known:
+            editorial={
+                "editorial_index_state":history["publication"]["editorial_index_state"],
+                "source_observed_utc":history["source_observed_utc"],
+                "source_snapshot_sha256":history["source_snapshot_sha256"],
+                "selected_version_group_id":history["version_group"]["version_group_id"],
+                "selected_version_group_members":history["version_group"]["selected_pmids"],
+                "retraction_cleanliness_not_verified":True,
+                "not_scientific_peer_review_certification":True,
+            }
+            status=editorial["editorial_index_state"]
+            if status in (
+                "RETRACTION_INDEX_FLAG_REVIEW_REQUIRED",
+                "EXPRESSION_OF_CONCERN_INDEX_FLAG_REVIEW_REQUIRED",
+                "ERRATUM_INDEX_FLAG_REVIEW_REQUIRED",
+            ):
+                requirements.insert(0,"Review indexed editorial notice and its exact publication version before reuse")
+            if status in ("PREPRINT_WITH_VERSION_UPDATE_LINK",
+                          "PREPRINT_INDEXED_VERSION_REVIEW_REQUIRED"):
+                requirements.insert(0,"Check indexed preprint and any updated published version; do not assume peer review")
+            if len(editorial["selected_version_group_members"])>1:
+                requirements.insert(0,"Do not count linked preprint/update records as independent corroboration")
+    input_vals={"pmid":pmid,"claim_type":claim_type,"doi":doi}
     provider_status="SELECTED_PUBMED_INDEX_ONLY" if known else "NOT_IN_SELECTED_INDEX"
     recorded_doi=trace["publication"].get("doi") if known else None
     source_sha=trace["publication"]["snapshot_sha256"] if known else None
@@ -232,6 +261,8 @@ def adjudicate(graph:dict,*,pmid:str,claim_type:str,doi:str|None=None)->dict:
         },
         "claim_type_label":CLAIM_CLASSES[claim_type]["name"],
         "required_evidence_tier":CLAIM_CLASSES[claim_type]["level"],
+        "source_editorial_history":editorial,
+        "absence_of_editorial_notice_is_not_clearance":True,
         "scientific_claim_supported":False,
         "clinical_claim_supported":False,
         "independent_expert_adjudication":"NOT_PERFORMED",
@@ -244,7 +275,7 @@ def adjudicate(graph:dict,*,pmid:str,claim_type:str,doi:str|None=None)->dict:
     body["receipt_sha256"]=_sha(body)
     return body
 
-def matrix(graph:dict)->dict:
+def matrix(graph:dict,lifecycle_snapshot:dict|None=None)->dict:
     if graph.get("schema")!=GRAPH_SCHEMA:
         raise ValueError("GRAPH_SCHEMA_MISMATCH")
     validate_graph(graph)
@@ -255,7 +286,8 @@ def matrix(graph:dict)->dict:
     for claim_type in CLAIM_CLASSES:
         decisions=CounterLike()
         for paper in papers:
-            result=adjudicate(graph,pmid=paper["pmid"],claim_type=claim_type,doi=paper["doi"])
+            result=adjudicate(graph,pmid=paper["pmid"],claim_type=claim_type,
+                              doi=paper["doi"],lifecycle_snapshot=lifecycle_snapshot)
             decisions[result["state"]]+=1
             if claim_type!="citation_identity" and result["scientific_claim_supported"] is not False:
                 raise ValueError("BIOLOGICAL_CLAIM_PROMOTED")
@@ -271,6 +303,14 @@ def matrix(graph:dict)->dict:
         "scientific_or_clinical_claims_admitted":0,
         "actual_model_training_samples_added":0,
         "denial_and_abstention_are_policy_not_model_validation":True,
+        "version_disjointness":({
+            "source_lifecycle_snapshot_sha256":lifecycle_snapshot["upstream_source_sha256"],
+            "version_groups_in_selected_sample":lifecycle_snapshot["version_components"]["selected_pmid_version_group_count"],
+            "linked_preprint_update_pairs_in_selected_sample":len(lifecycle_snapshot["version_components"]["explicit_in_sample_version_links"]),
+            "warning":"Linked preprint/update records must not be treated as independent corroborating experiments",
+        } if lifecycle_snapshot is not None else {
+            "state":"UNOBSERVED_NO_EDITORIAL_METADATA_ATTACHED",
+        }),
     }
 
 class CounterLike(dict):

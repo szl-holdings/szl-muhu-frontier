@@ -19,6 +19,8 @@ class HubCardTests(unittest.TestCase):
   short=fields.get("short_description","")
   self.assertGreater(len(short),10)
   self.assertLessEqual(len(short),60)
+  self.assertFalse(": " in short and not (short.startswith('"') and short.endswith('"')),
+                   "Unquoted YAML mapping colon is forbidden")
   self.assertNotIn("clinical claims",short.lower())
  def test_dataset_card_metadata_and_privacy(self):
   p=ROOT/"dataset"

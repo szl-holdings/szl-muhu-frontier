@@ -7,7 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: mit
-short_description: MUHU: Python research evidence; synthetic and nonclinical
+short_description: Python research evidence; synthetic and nonclinical
 tags:
   - research
   - reproducibility

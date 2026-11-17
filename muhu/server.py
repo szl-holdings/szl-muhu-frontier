@@ -3,7 +3,8 @@ from __future__ import annotations
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs,urlsplit
+from urllib.parse import parse_qs,urlsplit,urlencode
+from .witness import FIELDS, BOOL_FIELDS, DEMO, witness_query
 import argparse
 import json
 import math
@@ -59,7 +60,7 @@ h1{font-size:clamp(2.3rem,5vw,4rem);line-height:1.1;letter-spacing:-.05em;margin
 svg{width:100%;height:auto}.tag{display:inline-block;background:#264556;padding:.2rem .6rem;border-radius:8px;color:#b8e3ef}a{color:#90dcff}
 footer{margin-top:3rem;border-top:1px solid #315366;padding-top:1.4rem;color:#98bcc6}
 </style><main>
-<nav><a href="/">MUHU home</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
+<nav><a href="/">MUHU home</a><a href="/witness">Evidence witness</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
 """
 
 def html_page(panel:str,summary:dict,cases:list[dict]):
@@ -147,6 +148,71 @@ def v3_page(results:dict)->str:
           "Model state: HOLD, not deployable.</footer></main></html>")
  return head_and_style()+report
 
+def witness_page(result:dict)->str:
+ """A one-screen, Python-rendered nonclinical evidence gate.
+
+ Does not accept uploads, arbitrary scientific claims or personal data.
+ """
+ data=result.get("inputs") or DEMO
+ parts=[
+  "<p class='eyebrow'>MUHU Method Witness · deterministic · synthetic</p>",
+  "<h1>What would make this evidence reviewable?</h1>",
+  "<div class='banner'><strong>DEMONSTRATION ONLY.</strong> No patient, genetic, "
+  "biological or laboratory data. A reviewable metadata record is not a "
+  "verified scientific finding. No model is trained or invoked.</div>",
+  "<p>Change five invented metadata fields and independently inspect which "
+  "rule blocks, contradicts or marks a record stale. Nothing is stored, "
+  "and the application does not persist them; hosting infrastructure may log URLs.</p>",
+  "<form method='get' action='/witness' class='card'>",
+ ]
+ choices={
+  "source_bound":"Original source pointer supplied",
+  "independent_check":"Independent corroboration recorded",
+  "contradiction":"Conflicting report present",
+ }
+ for field in FIELDS:
+  if field in BOOL_FIELDS:
+   parts.append(f"<p><label>{escape(choices[field])} <select name='{field}'>")
+   for b in (True,False):
+    key=str(b).lower()
+    chosen=" selected" if data[field] is b else ""
+    parts.append(f"<option value='{key}'{chosen}>{'Yes' if b else 'No'}</option>")
+   parts.append("</select></label></p>")
+  else:
+   title="Actual observed denominator" if field=="sample_n" else "Days since last source verification"
+   mx=1000 if field=="sample_n" else 365
+   parts.append(f"<p><label>{title} "
+                f"<input name='{field}' type='number' required min='0' max='{mx}' "
+                f"value='{int(data[field])}'></label></p>")
+ parts.append("<button type='submit'>Evaluate synthetic evidence</button></form>")
+ state=str(result["state"])
+ parts.append(f"<h2>Current verdict: <span class='tag'>{escape(state)}</span></h2>")
+ if "inputs" not in result:
+  parts.append("<p class='banner'>UNAVAILABLE: some required inputs were not provided. "
+               "No classification was inferred.</p>")
+  parts.append("<p>Missing fields: "+escape(", ".join(result.get("missing_fields",[])))+"</p>")
+ else:
+  parts.append("<p>"+escape(result["limitation"])+"</p>")
+  parts.append("<section class='cards'>")
+  for item in result["checks"]:
+   label="PASS" if item["passed"] else "NEEDS EVIDENCE"
+   parts.append("<article class='card'><strong>"+escape(item["id"])+" — "+label+"</strong>"
+                "<p>"+escape(item["observation"])+"</p></article>")
+  parts.append("</section>")
+  parts.append("<p class='muted'>Canonical witness SHA-256 (integrity only, not signed): "
+               "<code>"+escape(result["witness_sha256"])+"</code></p>")
+  canonical_query=urlencode({k:str(data[k]).lower() if k in BOOL_FIELDS else data[k] for k in FIELDS})
+  parts.append("<p><a href='/api/v1/witness?"+escape(canonical_query,quote=True)+"'>"
+               "Inspect machine-readable evidence and source fields</a></p>")
+ parts.append("<h2>Evidence still required</h2><section class='card'><ul>")
+ for item in result.get("required_evidence",[]):
+  parts.append("<li>"+escape(item)+"</li>")
+ parts.append("</ul></section>")
+ parts.append("<footer>Methodological policy only. SOURCE ≠ CORRECT, CURRENT ≠ "
+              "VALIDATED, REVIEWABLE ≠ QUALIFIED. GitHub source and independent "
+              "testing remain the governing authorities.</footer></main></html>")
+ return head_and_style()+"".join(parts)
+
 class Handler(BaseHTTPRequestHandler):
  server_version="SZL-MUHU/2"
  manifest:dict={}
@@ -185,6 +251,15 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,self.v3_metrics)
   if path=="/v3":
    return self.reply(200,v3_page(self.v3_metrics),"text/html; charset=utf-8")
+  if path in ("/witness","/api/v1/witness"):
+   try:
+    witness=witness_query(urlsplit(self.path).query,demo_if_empty=(path=="/witness"))
+   except ValueError:
+    return self.reply(400,{"state":"INVALID_SYNTHETIC_METADATA_INPUT",
+                           "clinical_quality":"NOT_ASSESSED"})
+   if path=="/api/v1/witness":
+    return self.reply(200,witness)
+   return self.reply(200,witness_page(witness),"text/html; charset=utf-8")
   if path=="/api/v1/example":
    query=parse_qs(urlsplit(self.path).query,keep_blank_values=True,max_num_fields=2)
    if set(query)-{"i"} or len(query.get("i",["0"]))!=1:return self.reply(400,{"state":"BAD_QUERY"})

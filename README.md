@@ -125,6 +125,26 @@ A public source generator means that withheld internal test cases
 can be reconstructed; outside blinded expert review is still absent.
 A functioning preview and green CI do NOT establish scientific validity.
 
+## New: Interactive Method Witness (research-only)
+
+The read-only [Method Witness](https://szlholdings-szl-muhu-frontier.hf.space/witness) and
+[verifiable five-field API](https://szlholdings-szl-muhu-frontier.hf.space/api/v1/witness) illustrate why the MUHU v3
+model's high raw accuracy is **not** a substitute for explicit evidence.
+The witness classifies five invented, typed metadata inputs using
+a deterministic and falsifiable policy. It returns which requirements
+are missing, a canonical SHA-256 integrity checksum (**not a digital
+signature**) and the evidence needed for a human reviewer.
+
+Missing inputs return `UNAVAILABLE` rather than inferred values.
+Unknown fields, malformed values and duplicates return HTTP 400.
+The system accepts no biomedical narratives, genomic sequences,
+collaborator lab records or private uploads. Its rules have 640
+independently cross-checked synthetic cases; that is a **software
+behavior test**, not external scientific validation.
+
+[Read the trust boundary and negative controls](research/METHOD_WITNESS.md).
+The platform remains `/readyz` 503 (scientific and clinical HOLD).
+
 ## Next-cycle model admission gate
 
 Before any distinct future Khipu/Flagship research adapter, require:

@@ -11,6 +11,8 @@ from .provenance_graph import (
  lexical_search, TOPICS as PROVENANCE_TOPICS,
 )
 from .graph_ui import page as graph_page
+from .claim_firewall import adjudicate, parse_request as parse_claim_request, rulebook as claim_rulebook, matrix as claim_matrix
+from .claim_ui import page as claim_page
 import argparse
 import json
 import math
@@ -66,7 +68,7 @@ h1{font-size:clamp(2.3rem,5vw,4rem);line-height:1.1;letter-spacing:-.05em;margin
 svg{width:100%;height:auto}.tag{display:inline-block;background:#264556;padding:.2rem .6rem;border-radius:8px;color:#b8e3ef}a{color:#90dcff}
 footer{margin-top:3rem;border-top:1px solid #315366;padding-top:1.4rem;color:#98bcc6}
 </style><main>
-<nav><a href="/">MUHU home</a><a href="/graph">Source provenance graph</a><a href="/witness">Evidence witness</a><a href="/sources">Publication provenance</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
+<nav><a href="/">MUHU home</a><a href="/claim-gate">Claim Evidence Firewall</a><a href="/graph">Source provenance graph</a><a href="/witness">Evidence witness</a><a href="/sources">Publication provenance</a><a href="/methods">Evidence protocol</a><a href="/sara">Sara research</a><a href="/vidal">Vidal research</a><a href="/genomics">Genomic context</a><a href="/v3">V3 evaluation</a><a href="/api/v1/manifest">Machine-readable evidence</a></nav>
 """
 
 def html_page(panel:str,summary:dict,cases:list[dict]):
@@ -304,6 +306,7 @@ class Handler(BaseHTTPRequestHandler):
  examples:list[dict]=[]
  source_snapshot:dict={}
  citation_graph:dict={}
+ claim_matrix:dict={}
 
  def log_message(self,*args):return
 
@@ -336,6 +339,27 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,self.manifest)
   if path=="/api/v1/v3-results":
    return self.reply(200,self.v3_metrics)
+  if path=="/api/v1/claim-policy":
+   return self.reply(200,claim_rulebook())
+  if path=="/api/v1/claim-matrix":
+   return self.reply(200,self.claim_matrix)
+  if path in ("/claim-gate","/api/v1/claim-gate"):
+   try:
+    raw_query=urlsplit(self.path).query
+    selected=({"pmid":"42422765","claim_type":"therapy_effectiveness",
+               "doi":"10.1016/j.omta.2026.201791"}
+              if path=="/claim-gate" and not raw_query
+              else parse_claim_request(raw_query))
+    decision=adjudicate(self.citation_graph,**selected)
+   except ValueError:
+    return self.reply(400,{"state":"INVALID_BOUNDED_CLAIM_QUERY",
+                           "clinical_claim_supported":False})
+   if path=="/api/v1/claim-gate":
+    return self.reply(200,decision)
+   options=[(n["pmid"],n["label"]) for n in self.citation_graph["nodes"]
+            if n["kind"]=="publication"]
+   return self.reply(200,head_and_style()+claim_page(decision,self.claim_matrix,options),
+                     "text/html; charset=utf-8")
   if path=="/v3":
    return self.reply(200,v3_page(self.v3_metrics),"text/html; charset=utf-8")
   if path in ("/graph","/api/v1/graph"):
@@ -448,9 +472,13 @@ def create_handler(public_dir:Path):
    ROOT/"research"/"public_sources"/"pubmed-sources-admitted-20261117.json",
    ROOT/"research"/"public_sources"/"sara-pubmed-sources-20261117.json")
  validate_graph(citation_graph)
+ matrix_report=claim_matrix(citation_graph)
+ if matrix_report["combinations_checked"]!=207 or matrix_report["scientific_or_clinical_claims_admitted"]!=0:
+  raise ValueError("CLAIM_FIREWALL_QUALITY_BOUNDS_BROKEN")
  return type("MUHUBoundHandler",(Handler,),{"manifest":manifest,"examples":rows[:6],
                                          "v3_metrics":v3,"source_snapshot":public_snapshot,
-                                         "citation_graph":citation_graph})
+                                         "citation_graph":citation_graph,
+                                         "claim_matrix":matrix_report})
 
 def main():
  p=argparse.ArgumentParser()

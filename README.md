@@ -208,6 +208,35 @@ This feature does not alter the existing MUHU v3 experimental model
 **FAILED/HOLD**, publish third-party article texts, ingest Sara or
 Vidal lab data, or authorize a Khipu/Flagship54 training job.
 
+## New: Explainable Claim Evidence Firewall
+
+The source-bound [Claim Evidence Firewall](https://szlholdings-szl-muhu-frontier.hf.space/claim-gate)
+is a separate, **deterministic research-only** component that prevents
+a paper's bibliographic metadata from being presented as proof of
+gene–disease causality, variant pathogenicity, gene therapy efficacy,
+laboratory reproducibility, author endorsement or patient-treatment
+safety.
+
+It uses exactly the **23 prior public PubMed citation records**,
+nine finite claim classes and a fully explainable decision policy.
+All **207 source × claim-class combinations** are independently
+tested as software cases—not actual biomedical experiments.
+A correct PMID/DOI match proves only indexed citation identity at
+the pinned observation date. A contradictory DOI is a provenance
+conflict; an unlisted PMID is an explicit source-scope UNAVAILABLE;
+a patient treatment request is DENIED.
+
+The public [machine-readable decision API](https://szlholdings-szl-muhu-frontier.hf.space/api/v1/claim-policy)
+documents claim tiers, missing evidence, and the exact source SHA-256.
+It accepts only public identifiers and enumerated categories; no
+free-text biomedical reports or patient information. All updates are
+read-only; `/readyz` remains 503 (scientific and clinical HOLD).
+
+[Read the predeclared scope, falsifiable controls and constraints](research/CLAIM_EVIDENCE_FIREWALL_V1.md).
+This is **not a new trained genetics model**. It provides a provenance
+control to evaluate future Khipu outputs, without modifying
+Flagship54, scheduling compute or claiming that model accuracy improved.
+
 ## Next-cycle model admission gate
 
 Before any distinct future Khipu/Flagship research adapter, require:

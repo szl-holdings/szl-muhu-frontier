@@ -128,6 +128,15 @@ def verify_splits(parts:dict[str,list[dict]])->dict:
    if row["target_state"]!=status_of(row["oracle_inputs"]):raise ValueError("ORACLE_MISMATCH")
    if row["output"]!="STATE: "+row["target_state"]+"\nLIMIT: "+REASON[row["target_state"]]:
     raise ValueError("ANSWER_MISMATCH")
+   # The SFT loader consumes messages, not the parallel input/output metadata.
+   # A tampered system/user/assistant message must never pass a split audit.
+   expected_messages=[
+    {"role":"system","content":SYSTEM},
+    {"role":"user","content":row.get("input")},
+    {"role":"assistant","content":row["output"]},
+   ]
+   if type(row.get("input")) is not str or row.get("messages")!=expected_messages:
+    raise ValueError("CHAT_TRAINING_PAYLOAD_MISMATCH")
    if row["group_sha256"]!=fingerprint(row["oracle_inputs"]):raise ValueError("GROUP_ID_MISMATCH")
    if partition(row["oracle_inputs"])!=part:raise ValueError("PARTITION_MISMATCH")
    if row["id"] in seen_ids:raise ValueError("DUPLICATE_SAMPLE")

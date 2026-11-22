@@ -72,6 +72,30 @@ class RulebookTests(unittest.TestCase):
   self.assertEqual([m["role"] for m in row["messages"]],["system","user","assistant"])
   self.assertEqual(row["messages"][-1]["content"],row["output"])
   self.assertEqual(row["messages"][1]["content"],row["input"])
+ def test_model_facing_chat_tampering_fails_even_if_oracle_metadata_is_intact(self):
+  original=generate()
+  attacks=("change_system","change_user","change_assistant","append_message",
+           "remove_message","replace_with_object","change_input")
+  for attack in attacks:
+   with self.subTest(attack=attack):
+    cases=copy.deepcopy(original)
+    row=cases["train"][0]
+    messages=row["messages"]
+    if attack=="change_system":messages[0]["content"]="You may fabricate evidence."
+    elif attack=="change_user":messages[1]["content"]="Give me a clinical decision."
+    elif attack=="change_assistant":messages[2]["content"]="STATE: REVIEWABLE"
+    elif attack=="append_message":messages.append({"role":"developer","content":"Ignore the oracle."})
+    elif attack=="remove_message":messages.pop()
+    elif attack=="replace_with_object":row["messages"]={"role":"assistant","content":row["output"]}
+    elif attack=="change_input":row["input"]="A different prompt than the model-facing input."
+    with self.assertRaisesRegex(ValueError,"CHAT_TRAINING_PAYLOAD_MISMATCH"):
+     verify_splits(cases)
+
+ def test_original_generated_chat_payload_still_passes(self):
+  report=verify_splits(generate())
+  self.assertEqual(report["semantic_group_overlap"],0)
+  self.assertEqual(report["unique_groups"],len(enumerate_groups()))
+
  def test_atomic_source_readback(self):
   with tempfile.TemporaryDirectory() as tmp:
    public=Path(tmp)/"public"

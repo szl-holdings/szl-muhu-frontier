@@ -8,10 +8,22 @@ from hashlib import sha256
 from pathlib import Path
 from .core import canonical, generate, verify_splits,byte_lines,sha256_bytes
 
+def _unique_manifest_pairs(pairs):
+ out={}
+ for key,value in pairs:
+  if key in out:raise ValueError("AMBIGUOUS_MANIFEST_JSON")
+  out[key]=value
+ return out
+
+def _reject_nonfinite_manifest(_value):
+ raise ValueError("AMBIGUOUS_MANIFEST_JSON")
+
 def validate(public:Path)->dict:
  manifest_path=public/"manifest.json"
  train_path=public/"train.jsonl"
- manifest=json.loads(manifest_path.read_text("utf-8"))
+ manifest=json.loads(manifest_path.read_text("utf-8"),
+                     object_pairs_hook=_unique_manifest_pairs,
+                     parse_constant=_reject_nonfinite_manifest)
  if manifest.get("schema")!="szl.muhu.dataset_manifest.v2":raise ValueError("SCHEMA_MISMATCH")
  if manifest.get("training_performed") is not False:raise ValueError("FALSE_TRAINING_CLAIM")
  if manifest.get("admitted_into_any_flagship") is not False:raise ValueError("UNAUTHORIZED_PROMOTION")

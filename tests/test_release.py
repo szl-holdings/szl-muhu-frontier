@@ -23,6 +23,27 @@ class PublicationTests(unittest.TestCase):
    path.write_bytes(path.read_bytes()+b"\n")
    with self.assertRaisesRegex(ValueError,"PUBLIC_TRAIN_BYTES_CHANGED"):
     validate(p/"data")
+ def test_ambiguous_manifest_json_refused(self):
+  with tempfile.TemporaryDirectory() as td:
+   p=Path(td)
+   build(p/"data",p/"private")
+   path=p/"data"/"manifest.json"
+   original=path.read_text("utf-8")
+   self.assertIn('"split_hashes_sha256":{',original)
+   cases={
+    "duplicate_root":original.rstrip()[:-1]+',"admitted_into_any_flagship":false}',
+    "duplicate_nested":original.replace('"split_hashes_sha256":{','"split_hashes_sha256":{"train":"ambiguous",',1),
+    "nan":original.rstrip()[:-1]+',"extra":NaN}',
+    "positive_infinity":original.rstrip()[:-1]+',"extra":Infinity}',
+    "negative_infinity":original.rstrip()[:-1]+',"extra":-Infinity}',
+   }
+   for label,payload in cases.items():
+    with self.subTest(label=label):
+     path.write_text(payload,encoding="utf-8")
+     with self.assertRaisesRegex(ValueError,"AMBIGUOUS_MANIFEST_JSON"):
+      validate(p/"data")
+   path.write_text(original,encoding="utf-8")
+   self.assertEqual(validate(p/"data")["state"],"OFFLINE_SOURCE_BOUND_TRAINING_DATA_VERIFIED")
  def test_false_flagship_admission_refused(self):
   with tempfile.TemporaryDirectory() as td:
    p=Path(td)

@@ -53,6 +53,9 @@ jobs:
         with:
           name: reviewed-muhu-dist
           path: dist
-      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
+          packages-dir: dist/
+          attestations: true
+          verify-metadata: true
           verbose: false
